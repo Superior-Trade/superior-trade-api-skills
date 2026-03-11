@@ -1,6 +1,6 @@
 ---
 name: superior-trade-api
-version: 1.4.5
+version: 1.4.6
 date: 2026-03-11
 description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. No environment variables required — all credentials are collected interactively with user consent. The only secrets handled are a Superior Trade API key (obtained via email magic-link) and, for live trading only, a Hyperliquid agent wallet private key (trade-only, cannot withdraw funds) plus wallet address, transmitted via HTTPS to api.superior.trade. The agent never stores, logs, or displays credentials. Live deployments require explicit stepwise user confirmation.
 ---
@@ -21,13 +21,13 @@ This skill enables agents to integrate with the Superior Trade API. Superior Tra
 
 This section declares **every** piece of information the agent will request interactively. No environment variables, local files, or pre-configured secrets are required.
 
-| What | When needed | How obtained | Sensitivity | Where it goes |
-| --- | --- | --- | --- | --- |
-| **Email address** | First-time setup | User provides it | Low | Sent to `POST https://api.superior.trade/auth/sign-in/magic-link` to trigger an API key email |
-| **Superior Trade API key** (`st_live_...`) | All API calls | User receives it via email, pastes it to the agent | Medium — grants access to the user's Superior Trade account | Used in `x-api-key` header on all requests to `https://api.superior.trade`. Not stored by the agent. |
+| What                                                     | When needed                                                     | How obtained                                                                                  | Sensitivity                                                                                                                                                          | Where it goes                                                                                                                                            |
+| -------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Email address**                                        | First-time setup                                                | User provides it                                                                              | Low                                                                                                                                                                  | Sent to `POST https://api.superior.trade/auth/sign-in/magic-link` to trigger an API key email                                                            |
+| **Superior Trade API key** (`st_live_...`)               | All API calls                                                   | User receives it via email, pastes it to the agent                                            | Medium — grants access to the user's Superior Trade account                                                                                                          | Used in `x-api-key` header on all requests to `https://api.superior.trade`. Not stored by the agent.                                                     |
 | **Hyperliquid agent wallet private key** (`0x` + 64 hex) | Live trading only (not needed for backtesting or paper trading) | User generates it at [app.hyperliquid.xyz/API](https://app.hyperliquid.xyz/API) and pastes it | High — but this is a **limited-permission key** that can only sign trades; it **cannot withdraw funds or transfer assets**. Revocable anytime from Hyperliquid's UI. | Sent via HTTPS to `POST https://api.superior.trade/v1/deployment/{id}/credentials`. Stored encrypted at rest by Superior Trade. Not stored by the agent. |
-| **Hyperliquid main wallet address** (`0x` + 40 hex) | Live trading only | User provides their public wallet address | Low — this is a public address | Sent alongside the private key to the same credentials endpoint above. |
-| **Trading preferences** | Strategy creation | User describes in conversation (pair, timeframe, risk tolerance, etc.) | None | Used to generate strategy code and config sent to Superior Trade API |
+| **Hyperliquid main wallet address** (`0x` + 40 hex)      | Live trading only                                               | User provides their public wallet address                                                     | Low — this is a public address                                                                                                                                       | Sent alongside the private key to the same credentials endpoint above.                                                                                   |
+| **Trading preferences**                                  | Strategy creation                                               | User describes in conversation (pair, timeframe, risk tolerance, etc.)                        | None                                                                                                                                                                 | Used to generate strategy code and config sent to Superior Trade API                                                                                     |
 
 **The agent will never ask for:** seed phrases, mnemonic phrases, main wallet private keys, cloud/Kubernetes credentials, exchange API key/secret pairs (Hyperliquid is a DEX and doesn't use those), or any file from the user's system.
 
@@ -37,11 +37,11 @@ This section declares **every** piece of information the agent will request inte
 
 ### API Quick Reference
 
-| | Value |
-| --- | --- |
-| **Base URL** | `https://api.superior.trade` |
-| **Auth** | `x-api-key` header on all protected endpoints |
-| **Docs** | `GET /docs` (Swagger UI) · `GET /openapi.json` (OpenAPI spec) |
+|              | Value                                                         |
+| ------------ | ------------------------------------------------------------- |
+| **Base URL** | `https://api.superior.trade`                                  |
+| **Auth**     | `x-api-key` header on all protected endpoints                 |
+| **Docs**     | `GET /docs` (Swagger UI) · `GET /openapi.json` (OpenAPI spec) |
 
 ## Getting an API Key
 
@@ -68,14 +68,14 @@ If the user doesn't have a Superior Trade API key, guide them through the magic-
 
 ### Common Auth Errors
 
-| Error              | Cause                 | Fix                                                              |
-| ------------------ | --------------------- | ---------------------------------------------------------------- |
-| 500 on sign-in     | Malformed request body | Ensure valid JSON `{"email": "..."}` with `Content-Type: application/json` |
+| Error          | Cause                  | Fix                                                                        |
+| -------------- | ---------------------- | -------------------------------------------------------------------------- |
+| 500 on sign-in | Malformed request body | Ensure valid JSON `{"email": "..."}` with `Content-Type: application/json` |
 
 ### Auth Endpoints
 
-| Method | Path                       | Description                    |
-| ------ | -------------------------- | ------------------------------ |
+| Method | Path                       | Description                                  |
+| ------ | -------------------------- | -------------------------------------------- |
 | POST   | `/auth/sign-in/magic-link` | Request API key via email `{"email": "..."}` |
 
 ## Supported Exchanges
