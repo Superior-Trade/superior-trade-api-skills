@@ -1,6 +1,7 @@
 ---
 name: superior-trade-api
-version: 1.4.8
+version: 1.5.0
+updated: 2026-03-18
 description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. No environment variables required — all credentials are collected interactively.
 ---
 
@@ -9,7 +10,7 @@ description: Interact with the Superior Trade API to backtest and deploy trading
 API client skill for backtesting and deploying Freqtrade strategies on Superior Trade's cloud infrastructure.
 
 **Base URL:** `https://api.superior.trade`
-**Auth:** `x-api-key` header on all protected endpoints
+**Auth:** `x-api-key` header (v1 and v2) or `Authorization: Bearer <JWT>` header (v2 only)
 **Docs:** `GET /docs` (Swagger UI), `GET /openapi.json` (OpenAPI spec)
 
 ## Getting an API Key
@@ -189,8 +190,7 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 {
   "config": {},
   "code": "string (Python strategy code, required)",
-  "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
-  "stake_amount": 100
+  "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
 }
 ```
 
@@ -209,10 +209,10 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 **Request:**
 
 ```json
-{ "action": "start" }
+{ "action": "start" | "stop" }
 ```
 
-Only `"start"` is supported. To stop a running backtest, use `DELETE /v1/backtesting/{id}`.
+`"start"` begins a pending backtest. `"stop"` cancels a running or pending backtest (terminates the K8s pod and marks as cancelled).
 
 **Response (200):**
 
@@ -249,7 +249,6 @@ The `results` field is `null` while running and populates with backtest metrics 
   "config": {},
   "code": "string",
   "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
-  "stake_amount": 100,
   "status": "pending | running | completed | failed",
   "results": null,
   "result_url": "https://storage.googleapis.com/... (signed URL, valid 7 days)",
@@ -273,7 +272,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 ```json
 {
   "backtest_id": "string",
-  "items": [{ "timestamp": "ISO8601", "message": "string" }],
+  "items": [{ "timestamp": "ISO8601", "message": "string", "severity": "string" }],
   "nextCursor": "string | null"
 }
 ```
@@ -364,6 +363,7 @@ Query params: `pageSize` (default 100), `pageToken`.
   "id": "string",
   "status": "running | stopped | ...",
   "replicas": 1,
+  "available_replicas": 1,
   "pods": null
 }
 ```
@@ -372,7 +372,12 @@ Query params: `pageSize` (default 100), `pageToken`.
 
 **Request (Hyperliquid):**
 
-All three fields are required. See "Hyperliquid Credentials" above for how to guide the user.
+`exchange` and `private_key` are required. `wallet_address` is required for Hyperliquid. Supports two modes:
+
+1. **API Wallet mode** (recommended): `private_key` from the agent/API wallet, `wallet_address` from the main account.
+2. **Main Account mode**: `private_key` and `wallet_address` both from the main account.
+
+See "Hyperliquid Credentials" above for how to guide the user.
 
 ```json
 {
@@ -719,7 +724,8 @@ When a strategy uses `adjust_trade_position()` (DCA, scaling, or any multi-order
 - Spot mode does NOT support stoploss on exchange; futures mode supports `stop-loss-limit` orders
 - Historical data for Hyperliquid is available from approximately November 2025 onwards; choose timeranges within the available data window
 - Backtests with no available data for the requested timerange will fail — check logs for details
-- Backtest status only supports `"start"` — to stop a running backtest, use `DELETE`
+- Backtest status supports `"start"` and `"stop"` — stop cancels a running/pending backtest
 - Deployment status actions are `"start"` / `"stop"`
 - Response timestamps use snake_case: `created_at`, `updated_at`, `started_at`, `completed_at`
 - v1 and v2 endpoints have **identical** request/response formats — use either interchangeably
+- v1 endpoints require `x-api-key` auth only; v2 endpoints accept both `x-api-key` and `Authorization: Bearer <JWT>` (Privy embedded wallet token)
