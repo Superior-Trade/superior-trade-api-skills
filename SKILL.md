@@ -676,8 +676,10 @@ def adjust_trade_position(self, trade, current_time, current_rate,
     # Return a negative stake amount to partially close the position
     # Return None to do nothing
     #
-    # IMPORTANT: Hyperliquid requires minimum $15 per order.
-    # Always check min_stake and ensure amounts >= max(min_stake, 15).
+    # IMPORTANT: Hyperliquid exchange minimum is $10 per order.
+    # Freqtrade inflates this by a stoploss reserve (up to 1.5×), making
+    # the effective minimum $10–$15 depending on stoploss depth.
+    # Always check min_stake and ensure amounts >= min_stake.
     if should_dca(trade, current_time):
         dca_amount = 500  # add $500 to the position
         return max(dca_amount, min_stake)  # respect exchange minimum
@@ -690,7 +692,7 @@ Key points:
 - Returning a negative number partially closes the position
 - The agent should use this pattern whenever the user wants repeated buys on the same pair
 - `max_open_trades` in config limits total concurrent trades across all pairs, not entries per pair
-- **Hyperliquid minimum order: $15.** Every order (DCA buy or partial sell) must be ≥ $15 or it will be rejected. Use `min_stake` parameter to enforce this. Superior Trade auto-sets `trading_min_order_amount: 15` in config as a safety net — freqtrade will skip orders below this threshold. If the remaining position value is below $15 on exit, sell the full position in one order instead of leaving dust.
+- **Hyperliquid minimum order: $10 (exchange base).** Freqtrade applies a stoploss reserve on top: `$10 × min(1.05 / (1 - |stoploss|), 1.5)`, making the effective minimum $10–$15 depending on stoploss depth (e.g. $15 at -30% stoploss). Always use the `min_stake` parameter — it already accounts for this reserve. Superior Trade auto-sets `trading_min_order_amount: 10` in config. The API validates at deployment time that `stake_amount` ≥ effective minimum for the configured stoploss, so bad configs are rejected early with a clear error message.
 
 ## Typical Workflows
 
