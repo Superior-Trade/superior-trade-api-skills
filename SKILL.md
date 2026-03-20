@@ -22,11 +22,20 @@ API client skill for backtesting and deploying Freqtrade strategies on Superior 
 
 ## Getting an API Key
 
+> **IMPORTANT:** The correct URL is **https://account.superior.trade** — NOT `app.superior.trade`. Never send users to `app.superior.trade`; that URL is incorrect and must never be used.
+
 Users get their API key by logging in to the Superior Trade account portal (https://account.superior.trade). On login, an API key is automatically created and displayed.
 
 If the user already has a key (prefixed `st_live_`), use it directly in the `x-api-key` header.
 
 If the user doesn't have a key yet, direct them to log in at https://account.superior.trade — the key is created automatically on first login.
+
+When instructing a user to get an API key, use exactly this format:
+1. Go to https://account.superior.trade
+2. Sign up with your email
+3. Check inbox for the magic link — click to log in
+4. Your API key (`st_live_...`) is created automatically on first login
+5. Send me the key and I'll set up your first strategy
 
 ## Security & Permissions
 
