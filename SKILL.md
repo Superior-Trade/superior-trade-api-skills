@@ -1,8 +1,23 @@
 ---
 name: superior-trade-api
-version: 1.6.0
-updated: 2026-03-18
-description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. No environment variables required — all credentials are collected interactively.
+version: 2.5.0
+updated: 2026-03-20
+homepage: https://account.superior.trade
+source: https://github.com/Superior-Trade
+primary_credential: SUPERIOR_TRADE_API_KEY
+required_env:
+  - SUPERIOR_TRADE_API_KEY
+env:
+  - name: SUPERIOR_TRADE_API_KEY
+    description: "Superior Trade API key (x-api-key header). Obtained by logging in at https://account.superior.trade. Scoped to the authenticated user's own backtests and deployments only — cannot withdraw funds, export private keys, or access other users' data."
+    required: true
+    type: api_key
+credentials:
+  - name: SUPERIOR_TRADE_API_KEY
+    description: "Superior Trade API key (x-api-key header). Obtained by logging in at https://account.superior.trade. Scoped to the authenticated user's own backtests and deployments only — cannot withdraw funds, export private keys, or access other users' data."
+    required: true
+    type: api_key
+description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. Requires one credential — an API key (x-api-key header) obtained by logging in at https://account.superior.trade. No private keys, seed phrases, or wallet credentials are ever collected from the user — wallet management is handled entirely server-side.
 ---
 
 # Superior Trade API
@@ -15,33 +30,55 @@ API client skill for backtesting and deploying Freqtrade strategies on Superior 
 
 ## Getting an API Key
 
-If the user doesn't have a Superior Trade API key, guide them through the magic-link flow below. The agent should make the API call directly.
+Users get their API key by logging in to the Superior Trade account portal (https://account.superior.trade). On login, an API key is automatically created and displayed.
 
-> The Superior Trade website has no UI for creating API keys. Magic-link is the only way.
+If the user already has a key (prefixed `st_live_`), use it directly in the `x-api-key` header.
 
-### Flow
+If the user doesn't have a key yet, direct them to log in at https://account.superior.trade — the key is created automatically on first login.
 
-1. **Ask the user for their email address**, then call:
+## Security & Permissions
 
-   `POST /auth/sign-in/magic-link` with body `{"email": "user@example.com"}` and `Content-Type: application/json`
+### Only Credential: API Key
 
-2. **Tell the user:** *"I've sent an email to your inbox. It contains your API key — copy it and paste it here when you have it."*
+This skill requires exactly **one credential**: an `x-api-key` header value. The key is obtained by logging in at [account.superior.trade](https://account.superior.trade) — no manual creation step is needed.
 
-3. **Done.** The user receives the API key directly in the email. No verify step, no create-api-key call. Once they paste the key, use it in the `x-api-key` header for all subsequent requests.
+**The agent must NEVER ask users for private keys, seed phrases, or wallet credentials.** All wallet/key management is handled server-side by the platform. The only secret the user provides is their API key.
 
-**About the email:** The email contains the **API key** (prefixed `st_live_`). There is no button, no clickable link — just the key to copy. Do NOT tell the user to "click a link" or "click a button".
+### API Key Scope
 
-### Common Auth Errors
+The API key grants access **only** to the authenticated user's own resources:
 
-| Error | Cause | Fix |
-|---|---|---|
-| 500 on sign-in | Malformed request body | Ensure valid JSON `{"email": "..."}` with `Content-Type: application/json` |
+| Can do | Cannot do |
+|--------|-----------|
+| Create, list, delete backtests | Access other users' data |
+| Create, start, stop, delete deployments | Withdraw funds from any wallet |
+| Store credentials (server-managed wallets) | Export or view private keys |
+| View deployment logs and status | Modify platform infrastructure |
+| Read wallet address metadata | Transfer funds between wallets |
 
-### Auth Endpoints
+The key is scoped to backtesting and deployment operations. It cannot initiate withdrawals or access private key material.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/sign-in/magic-link` | Request API key via email `{"email": "..."}` |
+### Transparency Requirements
+
+Before any **live deployment** (not paper trading), the agent MUST present a human-readable summary and wait for explicit user confirmation:
+
+```
+Deployment Summary:
+- Strategy: [name]
+- Exchange: hyperliquid
+- Trading mode: [spot/futures]
+- Pairs: [list]
+- Stake amount: [amount] USDC per trade
+- Max open trades: [n]
+- Stoploss: [percentage]
+- Margin mode: [cross/isolated] (futures only)
+
+⚠️ This will trade with REAL funds. Proceed? (yes/no)
+```
+
+The agent must NOT start a live deployment without receiving an explicit affirmative response from the user.
+
+If the user asks to see the raw API request or payload at any point, the agent must show it — transparency is always available on request.
 
 ## Supported Exchanges
 
@@ -73,7 +110,7 @@ If the user doesn't have a Superior Trade API key, guide them through the magic-
 - Historic OHLCV bulk download is not supported via the exchange API
 - Superior Trade infrastructure pre-downloads data; availability starts from approximately November 2025
 
-**Hyperliquid is a DEX** — it does not use traditional API key/secret authentication. Instead, it uses wallet-based signing. See the "Hyperliquid Credentials" section below for how to guide users through this.
+**Hyperliquid is a DEX** — it does not use traditional API key/secret authentication. Instead, it uses wallet-based signing. Wallet credentials are managed automatically by the platform (see "Hyperliquid Credentials" section below).
 
 ### HIP3 — Tokenized Real-World Assets
 
@@ -147,11 +184,11 @@ Every factual claim about the user's account, balance, wallet status, or deploym
 
 ## Agent Behavior
 
-**CRITICAL: The agent must make all API calls directly and never show curl commands or raw API payloads to the user.** The user experience should be conversational:
+The agent should make API calls directly and present results conversationally rather than dumping raw curl commands or JSON payloads. If the user asks to see the raw request, response, or payload, always show it — transparency on request is mandatory.
 
 - **Backtesting**: The agent builds the config and strategy code from the user's intent, calls the API, starts the backtest, polls for completion, and presents results — all automatically.
-- **Deployment**: The agent creates the deployment, then proactively asks the user for their credentials before proceeding. Never dump a curl command or JSON payload.
-- **Proactive information gathering**: If the agent needs info (e.g. which pair, timeframe, stake amount, credentials), ask the user directly. Don't present a wall of required fields — ask conversationally, one concern at a time.
+- **Deployment**: The agent creates the deployment, stores credentials via the API (automatic — no user input needed), and starts the bot. Always show the deployment summary (see Transparency Requirements above) and get explicit confirmation before starting a live bot.
+- **Proactive information gathering**: If the agent needs info (e.g. which pair, timeframe, stake amount), ask the user directly. Don't present a wall of required fields — ask conversationally, one concern at a time.
 - **After backtesting**: If results are poor (negative profit), warn the user before offering to deploy live. If results are good, offer to deploy and begin gathering what's needed.
 
 ### Anti-Hallucination — Balance & State Checks
@@ -167,19 +204,17 @@ Always call BOTH endpoints and report combined results.
 
 ### Hyperliquid Credentials
 
-When a deployment needs exchange credentials, guide the user through obtaining a **Hyperliquid Agent Wallet**:
+Credentials are managed automatically through the platform — users do **not** need to create agent wallets on Hyperliquid manually.
 
-1. **Explain what it is**: An agent wallet is a special sub-wallet on Hyperliquid designed for automated trading. It can place trades on your behalf but **cannot initiate withdrawals**, making it safe to use with third-party trading bots. Your funds stay secure in your main wallet.
+When a deployment needs exchange credentials, the v2 credentials endpoint handles wallet creation and key management server-side. The agent only needs to call `POST /v2/deployment/{id}/credentials` with the exchange name.
 
-2. **Direct the user to create one**: Go to [https://app.hyperliquid.xyz/API](https://app.hyperliquid.xyz/API) and generate an agent wallet. This will give you:
-   - An **agent wallet private key** (`0x` + 64 hex chars)
-   - Your **main wallet address** (the `0x...` address you already use on Hyperliquid — NOT the agent wallet's address)
+Two modes are available:
 
-3. **Collect credentials from the user** — ask for:
-   - Their **agent wallet private key** (from the API page) — `private_key` field
-   - Their **main wallet address** (their Hyperliquid account address) — `wallet_address` field
+1. **Auto wallet (default)**: Omit `wallet_address` — the server creates or finds a platform-managed wallet for the user. The wallet is owned by the server and its private key is never exposed to the user.
 
-**Security:** The agent wallet key is trade-only — it **cannot withdraw funds**. The agent must never ask for the main wallet private key or any seed phrase.
+2. **User-provided wallet**: Pass `wallet_address` with the user's existing Hyperliquid wallet address. The server validates ownership and exports the key. The wallet must be a platform-managed embedded wallet.
+
+**The agent must NEVER ask users for private keys.** All key management is handled server-side. The agent should default to auto-wallet mode (omit `wallet_address`) unless the user specifically requests a particular wallet.
 
 ## Endpoints
 
@@ -197,13 +232,6 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 
 | Method | Path                          | Description                       |
 | ------ | ----------------------------- | --------------------------------- |
-| GET    | `/v1/backtesting`             | List backtests (cursor-paginated) |
-| POST   | `/v1/backtesting`             | Create backtest                   |
-| GET    | `/v1/backtesting/{id}`        | Get backtest details              |
-| GET    | `/v1/backtesting/{id}/status` | Poll backtest status              |
-| PUT    | `/v1/backtesting/{id}/status` | Start backtest                    |
-| GET    | `/v1/backtesting/{id}/logs`   | Get backtest logs                 |
-| DELETE | `/v1/backtesting/{id}`        | Delete backtest (also stops it)   |
 | GET    | `/v2/backtesting`             | List backtests (cursor-paginated) |
 | POST   | `/v2/backtesting`             | Create backtest                   |
 | GET    | `/v2/backtesting/{id}`        | Get backtest details              |
@@ -216,26 +244,19 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 
 | Method | Path                              | Description                         |
 | ------ | --------------------------------- | ----------------------------------- |
-| GET    | `/v1/deployment`                  | List deployments (cursor-paginated) |
-| POST   | `/v1/deployment`                  | Create deployment                   |
-| GET    | `/v1/deployment/{id}`             | Get deployment details              |
-| GET    | `/v1/deployment/{id}/status`      | Get live status with pod info       |
-| PUT    | `/v1/deployment/{id}/status`      | Start or stop deployment            |
-| POST   | `/v1/deployment/{id}/credentials` | Add exchange credentials            |
-| GET    | `/v1/deployment/{id}/logs`        | Get deployment pod logs             |
-| DELETE | `/v1/deployment/{id}`             | Delete deployment                   |
 | GET    | `/v2/deployment`                  | List deployments (cursor-paginated) |
 | POST   | `/v2/deployment`                  | Create deployment                   |
 | GET    | `/v2/deployment/{id}`             | Get deployment details              |
 | GET    | `/v2/deployment/{id}/status`      | Get live status with pod info       |
 | PUT    | `/v2/deployment/{id}/status`      | Start or stop deployment            |
-| POST   | `/v2/deployment/{id}/credentials` | Add exchange credentials            |
+| POST   | `/v2/deployment/{id}/credentials` | Store exchange credentials (Privy-only, no private_key) |
+| GET    | `/v2/deployment/{id}/credentials` | Get credential info (wallet address, source) |
 | GET    | `/v2/deployment/{id}/logs`        | Get deployment pod logs             |
 | DELETE | `/v2/deployment/{id}`             | Delete deployment                   |
 
 ## Request & Response Reference
 
-### POST `/v1/backtesting` — Create Backtest
+### POST `/v2/backtesting` — Create Backtest
 
 **Request:**
 
@@ -258,7 +279,7 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 }
 ```
 
-### PUT `/v1/backtesting/{id}/status` — Start Backtest
+### PUT `/v2/backtesting/{id}/status` — Start Backtest
 
 **Request:**
 
@@ -266,7 +287,7 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 { "action": "start" | "stop" }
 ```
 
-`"start"` begins a pending backtest. `"stop"` cancels a running or pending backtest (terminates the K8s pod and marks as cancelled).
+`"start"` begins a pending backtest. `"stop"` cancels a running or pending backtest (terminates the job and marks as cancelled).
 
 **Response (200):**
 
@@ -279,7 +300,7 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 }
 ```
 
-### GET `/v1/backtesting/{id}/status` — Poll Status
+### GET `/v2/backtesting/{id}/status` — Poll Status
 
 **Response (200):**
 
@@ -293,7 +314,7 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 
 The `results` field is `null` while running and populates with backtest metrics on completion (when trades were made).
 
-### GET `/v1/backtesting/{id}` — Full Details
+### GET `/v2/backtesting/{id}` — Full Details
 
 **Response (200):**
 
@@ -318,7 +339,7 @@ The `results` field is `null` while running and populates with backtest metrics 
 - `result_url` — signed URL to download full backtest results as JSON. Only available when status is `"completed"`. Valid for 7 days.
 - `results` — **deprecated**. Use `result_url` to download the full results instead.
 
-### GET `/v1/backtesting/{id}/logs` — Backtest Logs
+### GET `/v2/backtesting/{id}/logs` — Backtest Logs
 
 Query params: `pageSize` (default 100), `pageToken`.
 
@@ -332,7 +353,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-### DELETE `/v1/backtesting/{id}`
+### DELETE `/v2/backtesting/{id}`
 
 **Response (200):**
 
@@ -340,7 +361,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 { "message": "Backtest deleted" }
 ```
 
-### POST `/v1/deployment` — Create Deployment
+### POST `/v2/deployment` — Create Deployment
 
 **Request:**
 
@@ -367,7 +388,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-### PUT `/v1/deployment/{id}/status` — Start or Stop
+### PUT `/v2/deployment/{id}/status` — Start or Stop
 
 **Request:**
 
@@ -385,7 +406,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-### GET `/v1/deployment/{id}` — Full Details
+### GET `/v2/deployment/{id}` — Full Details
 
 **Response (200):**
 
@@ -409,7 +430,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 
 `pods` is `null` when no pods are running.
 
-### GET `/v1/deployment/{id}/status` — Live Status
+### GET `/v2/deployment/{id}/status` — Live Status
 
 **Response (200):**
 
@@ -423,22 +444,21 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-### POST `/v1/deployment/{id}/credentials`
+### POST `/v2/deployment/{id}/credentials` — Store Credentials (v2 Privy-only)
 
 **Request (Hyperliquid):**
 
-`exchange` and `private_key` are required. `wallet_address` is required for Hyperliquid. Supports two modes:
+`exchange` is required. `wallet_address` is optional. `private_key` is **NOT accepted** — keys are managed server-side.
 
-1. **API Wallet mode** (recommended): `private_key` from the agent/API wallet, `wallet_address` from the main account.
-2. **Main Account mode**: `private_key` and `wallet_address` both from the main account.
+Two modes:
 
-See "Hyperliquid Credentials" above for how to guide the user.
+1. **Auto wallet (default)**: Omit `wallet_address` — a platform-managed wallet is created or found for the user. Response includes `wallet_source: "main_trading_wallet"`.
+2. **User-provided wallet**: Pass `wallet_address` with the user's existing wallet. Ownership is validated server-side. Response includes `wallet_source: "provided"`.
 
 ```json
 {
   "exchange": "hyperliquid",
-  "private_key": "0x... (agent wallet private key — 64 hex chars)",
-  "wallet_address": "0x... (main trading wallet address — 40 hex chars, NOT the agent wallet)"
+  "wallet_address": "0x... (optional — user's wallet address)"
 }
 ```
 
@@ -449,30 +469,58 @@ See "Hyperliquid Credentials" above for how to guide the user.
   "id": "string",
   "credentials_status": "stored",
   "exchange": "hyperliquid",
+  "wallet_address": "0x...",
+  "wallet_source": "main_trading_wallet | provided",
   "updated_at": "ISO8601"
 }
 ```
 
 **Error responses:**
-- `400 invalid_private_key` — private key is not a valid Ethereum private key
+- `400 invalid_request` — `private_key` was sent (not accepted in v2)
+- `400 invalid_wallet_address` — invalid Ethereum address format
 - `400 duplicate_wallet_address` — wallet is already used by another deployment
 - `400 unsupported_exchange` — only `"hyperliquid"` is supported
-- `400 missing_credentials` — `private_key` is required
+- `400 no_wallet_available` — no platform-managed wallet available for the user
+- `403 wallet_not_owned` — user does not own the provided wallet address
+- `500 server_misconfigured` — server wallet configuration issue
 - If credentials are already `"stored"`, the endpoint returns the existing status (idempotent)
 
 #### Credential Updates (CRITICAL)
 
-The `POST /v1/deployment/{id}/credentials` endpoint is **idempotent once credentials are stored** — it will NOT overwrite existing credentials. To change wallets on a running deployment:
+The `POST /v2/deployment/{id}/credentials` endpoint is **idempotent once credentials are stored** — it will NOT overwrite existing credentials. To change wallets on a running deployment:
 
-1. Stop: `PUT /v1/deployment/{id}/status` → `{"action":"stop"}`
-2. Delete: `DELETE /v1/deployment/{id}`
-3. Create new: `POST /v1/deployment`
-4. Store new credentials: `POST /v1/deployment/{id}/credentials`
-5. Start: `PUT /v1/deployment/{id}/status` → `{"action":"start"}`
+1. Stop: `PUT /v2/deployment/{id}/status` → `{"action":"stop"}`
+2. Delete: `DELETE /v2/deployment/{id}`
+3. Create new: `POST /v2/deployment`
+4. Store new credentials: `POST /v2/deployment/{id}/credentials`
+5. Start: `PUT /v2/deployment/{id}/status` → `{"action":"start"}`
 
 NEVER tell the user "credentials updated" after calling the endpoint — always read the response and confirm the new wallet address was actually stored.
 
-### GET `/v1/deployment/{id}/logs`
+### GET `/v2/deployment/{id}/credentials` — Credential Info
+
+Returns wallet metadata for a deployment. Does NOT return private keys.
+
+**Response (200 — credentials stored):**
+
+```json
+{
+  "id": "string",
+  "credentials_status": "stored",
+  "exchange": "hyperliquid",
+  "wallet_address": "0x...",
+  "wallet_source": "main_trading_wallet | provided",
+  "wallet_type": "main_wallet | agent_wallet"
+}
+```
+
+**Response (200 — no credentials):**
+
+```json
+{ "credentials_status": "missing" }
+```
+
+### GET `/v2/deployment/{id}/logs`
 
 Query params: `pageSize` (default 100), `pageToken`.
 
@@ -486,7 +534,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-### DELETE `/v1/deployment/{id}`
+### DELETE `/v2/deployment/{id}`
 
 **Response (200):**
 
@@ -496,7 +544,7 @@ Query params: `pageSize` (default 100), `pageToken`.
 
 ### Paginated List
 
-Both `GET /v1/backtesting` (or `/v2/backtesting`) and `GET /v1/deployment` (or `/v2/deployment`) return:
+Both `GET /v2/backtesting` and `GET /v2/deployment` return:
 
 ```json
 {
@@ -754,25 +802,23 @@ Key points:
 The agent should execute all these steps automatically, presenting only the final results to the user:
 
 1. Build config and strategy code from the user's requirements
-2. `POST /v1/backtesting` — create the backtest
-3. `PUT /v1/backtesting/{id}/status` with `{"action": "start"}` — start it
-4. Poll `GET /v1/backtesting/{id}/status` every 10s until `completed` or `failed` (typically 1-10 minutes)
-5. `GET /v1/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
+2. `POST /v2/backtesting` — create the backtest
+3. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}` — start it
+4. Poll `GET /v2/backtesting/{id}/status` every 10s until `completed` or `failed` (typically 1-10 minutes)
+5. `GET /v2/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
 6. Present a summary: total trades, win rate, profit, drawdown, sharpe ratio
-7. If failed, check `GET /v1/backtesting/{id}/logs` and report the issue
-8. To stop a running backtest: `DELETE /v1/backtesting/{id}`
+7. If failed, check `GET /v2/backtesting/{id}/logs` and report the issue
+8. To stop a running backtest: `DELETE /v2/backtesting/{id}`
 
 ### Pre-Deployment Checklist (MANDATORY before starting any live bot)
 
-Before calling `PUT /v1/deployment/{id}/status` → `{"action":"start"}`, verify ALL of these:
+Before calling `PUT /v2/deployment/{id}/status` → `{"action":"start"}`, verify ALL of these:
 
-1. **Agent wallet is approved** — `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"<AGENT_WALLET_ADDRESS>"}`. If it returns an error or empty state, the wallet is NOT registered. Tell the user to approve it at [app.hyperliquid.xyz/API](https://app.hyperliquid.xyz/API).
+1. **Credentials are stored** — `GET /v2/deployment/{id}` and confirm `credentials_status` is `"stored"`. If not, call `POST /v2/deployment/{id}/credentials` first.
 
-2. **Funds are available** — Check BOTH perps and spot balances on the MAIN wallet. Report what you find. If funds are only in spot and user doesn't have unified mode, advise transfer.
+2. **Funds are available** — Check BOTH perps and spot balances on the user's wallet. Use `GET /v2/deployment/{id}/credentials` to find the `wallet_address`, then check via `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"<WALLET_ADDRESS>"}` and `{"type":"spotClearinghouseState","user":"<WALLET_ADDRESS>"}`. Report what you find. If funds are only in spot and user doesn't have unified mode, advise transfer.
 
-3. **Credentials are stored** — `GET /v1/deployment/{id}` and confirm `credentials_status` is `"stored"`.
-
-4. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` and verify the pair exists in the `universe` array.
+3. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` and verify the pair exists in the `universe` array.
 
 Do NOT skip any step. Do NOT assume any step passed without making the actual API call.
 
@@ -780,17 +826,18 @@ Do NOT skip any step. Do NOT assume any step passed without making the actual AP
 
 The agent should handle the API calls and proactively ask the user for what's needed:
 
-1. `POST /v1/deployment` with config, code, name — create the deployment
-2. **For live trading:** ask the user for their Hyperliquid credentials (see "Hyperliquid Credentials" section above):
-   - Guide them to create an agent wallet at https://app.hyperliquid.xyz/API if they don't have one
-   - Collect their agent wallet private key (`private_key`) and main wallet address (`wallet_address`)
-   - `POST /v1/deployment/{id}/credentials` — store the credentials
-   - Inform the user that the deployment will use real funds and confirm before proceeding
+1. `POST /v2/deployment` with config, code, name — create the deployment
+2. **For live trading:** store credentials via the platform:
+   - `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid" }` — the server creates/finds a wallet automatically
+   - Optionally, if the user wants to use a specific wallet: `{ "exchange": "hyperliquid", "wallet_address": "0x..." }`
+   - No manual wallet creation is needed — the platform handles it
 3. **For paper trading:** credentials are optional — skip them. The deployment will run in dry-run mode automatically.
-4. `PUT /v1/deployment/{id}/status` with `{"action": "start"}` — start (live if credentials stored, paper/dry-run if not)
-5. Monitor with `GET /v1/deployment/{id}/status`
-6. Check logs with `GET /v1/deployment/{id}/logs`
-7. Stop with `PUT /v1/deployment/{id}/status` `{"action": "stop"}`
+4. Run pre-deployment checklist (see above)
+5. **MANDATORY: Show deployment summary** (see Transparency Requirements) and wait for explicit user confirmation before proceeding. Do NOT auto-start live deployments.
+6. `PUT /v2/deployment/{id}/status` with `{"action": "start"}` — start (live if credentials stored, paper/dry-run if not)
+6. Monitor with `GET /v2/deployment/{id}/status`
+7. Check logs with `GET /v2/deployment/{id}/logs`
+8. Stop with `PUT /v2/deployment/{id}/status` `{"action": "stop"}`
 
 ### Reporting DCA / Multi-Order Trades
 
@@ -817,8 +864,8 @@ When a strategy uses `adjust_trade_position()` (DCA, scaling, or any multi-order
 ### Important Notes
 
 - Credentials are **optional**. If `credentialsStatus` is `"stored"`, the deployment runs **live**; if missing, it runs in **paper (dry-run)** mode with no real trades
-- Each deployment runs as an isolated Kubernetes pod
-- Backtests run as Kubernetes Jobs and are cleaned up after completion
+- Each deployment runs as an isolated container
+- Backtests run as jobs and are cleaned up after completion
 - Config fields `dry_run` and `api_server` are managed by Superior Trade; do not include them
 - Hyperliquid pair format depends on trading mode: spot uses `BTC/USDC`, futures uses `BTC/USDC:USDC` — using the wrong format for the mode will cause "not tradable" errors
 - Futures mode requires `trading_mode: "futures"` and `margin_mode: "cross"` (or `"isolated"`) in config
@@ -828,4 +875,4 @@ When a strategy uses `adjust_trade_position()` (DCA, scaling, or any multi-order
 - Backtest status supports `"start"` and `"stop"` — stop cancels a running/pending backtest
 - Deployment status actions are `"start"` / `"stop"`
 - Response timestamps use snake_case: `created_at`, `updated_at`, `started_at`, `completed_at`
-- v1 and v2 endpoints have **identical** request/response formats — use either interchangeably
+- All endpoints use the `/v2/` prefix with `x-api-key` authentication
