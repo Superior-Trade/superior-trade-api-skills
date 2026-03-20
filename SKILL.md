@@ -217,6 +217,19 @@ Two modes are available:
 
 **The agent must NEVER ask users for private keys.** All key management is handled server-side. The agent should default to auto-wallet mode (omit `wallet_address`) unless the user specifically requests a particular wallet.
 
+### Wallet Address Disambiguation (CRITICAL)
+
+There are TWO different wallet addresses involved. **Do NOT confuse them:**
+
+| Address | Source | Purpose | Deposit here? |
+|---------|--------|---------|---------------|
+| **Main deposit address** | Shown on the platform dashboard at https://account.superior.trade | Where the user deposits funds into the platform | **YES** — always direct users here |
+| **Deployment wallet** | Returned by `GET /v2/deployment/{id}/credentials` → `wallet_address` | The bot's internal trading wallet — the bot executes trades from this address | **NO** — never tell users to deposit to this address |
+
+The platform handles fund allocation from the user's main deposit address to deployment wallets internally. The agent has **no visibility** into the user's main deposit address — it is only shown on the platform dashboard.
+
+> **NEVER tell users to deposit or send funds to a deployment wallet address.** The `wallet_address` from the credentials API is for balance-checking only, NOT for deposits. Always direct users to deposit through the platform at https://account.superior.trade.
+
 ## Endpoints
 
 ### Public (no auth required)
@@ -817,7 +830,7 @@ Before calling `PUT /v2/deployment/{id}/status` → `{"action":"start"}`, verify
 
 1. **Credentials are stored** — `GET /v2/deployment/{id}` and confirm `credentials_status` is `"stored"`. If not, call `POST /v2/deployment/{id}/credentials` first.
 
-2. **Funds are available** — Check BOTH perps and spot balances on the user's wallet. Use `GET /v2/deployment/{id}/credentials` to find the `wallet_address`, then check via `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"<WALLET_ADDRESS>"}` and `{"type":"spotClearinghouseState","user":"<WALLET_ADDRESS>"}`. Report what you find. If funds are only in spot and user doesn't have unified mode, advise transfer.
+2. **Funds are available** — Check BOTH perps and spot balances on the deployment wallet. Use `GET /v2/deployment/{id}/credentials` to find the `wallet_address`, then check via `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"<WALLET_ADDRESS>"}` and `{"type":"spotClearinghouseState","user":"<WALLET_ADDRESS>"}`. Report what you find. If the balance is $0, tell the user: **"Your deployment wallet doesn't have funds yet. Please deposit through the platform at https://account.superior.trade — the platform will allocate funds to your bot."** Do NOT tell the user to send funds directly to the deployment wallet address. If funds are only in spot and user doesn't have unified mode, advise transfer.
 
 3. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` and verify the pair exists in the `universe` array.
 
