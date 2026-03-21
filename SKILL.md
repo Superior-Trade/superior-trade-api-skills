@@ -96,13 +96,6 @@ POST https://api.hyperliquid.xyz/info
 {"type":"spotClearinghouseState","user":"<MAIN_WALLET_ADDRESS>"}
 ```
 
-### Handling `server_misconfigured` on Credentials
-
-If `POST /v2/deployment/{id}/credentials` returns `500 server_misconfigured`:
-1. This is **transient** — generate a new API key at https://account.superior.trade
-2. Retry the credentials call with the new key
-3. If still failing, report to Superior Trade support
-
 ## Supported Exchanges
 
 | Exchange | Stake Currencies | Trading Modes |
