@@ -423,6 +423,8 @@ Spot pairs use `BTC/USDC` format. Stoploss on exchange not supported for spot.
   "stake_currency": "USDC", "stake_amount": 100, "timeframe": "15m",
   "max_open_trades": 3, "stoploss": -0.05,
   "trading_mode": "futures", "margin_mode": "isolated",
+  "entry_pricing": { "price_side": "other" },
+  "exit_pricing": { "price_side": "other" },
   "pairlists": [{ "method": "StaticPairList" }]
 }
 ```
@@ -503,6 +505,9 @@ Some TA-Lib functions return **multiple columns**. Assigning directly to one col
 | `ta.STOCH` | `slowk`, `slowd` |
 | `ta.STOCHF` / `ta.STOCHRSI` | `fastk`, `fastd` |
 | `ta.AROON` | `aroondown`, `aroonup` |
+| `ta.HT_PHASOR` | `inphase`, `quadrature` |
+| `ta.MAMA` | `mama`, `fama` |
+| `ta.MINMAXINDEX` | `minidx`, `maxidx` |
 
 ```python
 # WRONG — runtime crash
@@ -513,6 +518,15 @@ bb = ta.BBANDS(dataframe, timeperiod=20)
 dataframe["bb_upper"] = bb["upperband"]
 dataframe["bb_middle"] = bb["middleband"]
 dataframe["bb_lower"] = bb["lowerband"]
+
+macd = ta.MACD(dataframe)
+dataframe["macd"] = macd["macd"]
+dataframe["macd_signal"] = macd["macdsignal"]
+dataframe["macd_hist"] = macd["macdhist"]
+
+stoch = ta.STOCH(dataframe)
+dataframe["slowk"] = stoch["slowk"]
+dataframe["slowd"] = stoch["slowd"]
 ```
 
 Single-output functions (RSI, SMA, EMA, ATR, ADX) return a Series and can be assigned directly.
