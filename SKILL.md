@@ -1,6 +1,6 @@
 ---
 name: superior-trade-api
-version: 2.0.0
+version: 2.0.4
 updated: 2026-03-22
 description: "Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud. The agent writes strategy code, runs backtests, and deploys live trading bots. Requires one credential — an API key (x-api-key header) from https://account.superior.trade. No private keys or wallet credentials are ever collected."
 homepage: https://account.superior.trade
