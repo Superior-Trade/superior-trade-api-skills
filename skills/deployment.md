@@ -200,16 +200,13 @@ Some failures produce **zero diagnostic output** — just heartbeats, no errors:
 
 ## Rate Limits
 
-Hyperliquid enforces **1200 weight/min per IP**. The platform routes bot traffic through a proxy with a rotating IP pool — rate limits on one IP don't affect bots on other IPs. The proxy automatically detects 429 responses, marks that IP as unhealthy for ~60 seconds, and rotates to the next available IP.
-
 **Best practices:**
 - Always set `process_only_new_candles = True` (avoids redundant API calls)
 - Use candle close price for exits when possible
 
 **If rate-limited (429 in logs):**
-- The proxy handles this automatically — no manual intervention needed in most cases
-- If persistent, stop the deployment and redeploy after ~60 seconds
-- Do NOT create multiple rapid restart cycles
+- The platform handles this automatically — wait a moment and it should recover on its own
+- If persistent after a few minutes, stop the deployment and start a fresh one
 
 ## Error Responses
 
