@@ -198,18 +198,18 @@ Some failures produce **zero diagnostic output** — just heartbeats, no errors:
 
 **Key signal:** Heartbeats but zero "Analyzing candle" or order lines after 5+ minutes = balance/stake issue.
 
-## Rate Limit Mitigation (CRITICAL)
+## Rate Limits
 
-All Superior Trade bots share a single proxy IP. One bot's retries can throttle all bots.
+Hyperliquid enforces **1200 weight/min per IP**. The platform routes bot traffic through a proxy with a rotating IP pool — rate limits on one IP don't affect bots on other IPs. The proxy automatically detects 429 responses, marks that IP as unhealthy for ~60 seconds, and rotates to the next available IP.
 
-**Prevention:**
-- Always set `process_only_new_candles = True`
+**Best practices:**
+- Always set `process_only_new_candles = True` (avoids redundant API calls)
 - Use candle close price for exits when possible
-- Do NOT make external Hyperliquid API calls while a bot is running
 
-**If rate-limited:**
-- Do NOT immediately restart — causes death spiral (retries → more 429s → more retries, ~50+ req/min)
-- Wait for pod to stop, wait **5 minutes**, then create a fresh deployment
+**If rate-limited (429 in logs):**
+- The proxy handles this automatically — no manual intervention needed in most cases
+- If persistent, stop the deployment and redeploy after ~60 seconds
+- Do NOT create multiple rapid restart cycles
 
 ## Error Responses
 

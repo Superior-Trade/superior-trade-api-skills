@@ -38,7 +38,7 @@ Query: `pageSize` (default 100), `pageToken`.
 - **Heartbeat messages are normal** — the bot sends periodic heartbeats to confirm it's alive
 - **"Analyzing candle"** — bot is checking strategy conditions on the latest candle
 - **"Buying"/"Selling"** — trade execution
-- **Rate limit warnings** — reduce API calls, consider stopping if persistent
+- **Rate limit warnings** — usually handled automatically by the proxy; if persistent, stop and redeploy after ~60 seconds
 
 ### Diagnosing Zero-Trade Deployments
 
