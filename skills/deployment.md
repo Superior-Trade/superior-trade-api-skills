@@ -178,6 +178,22 @@ POST https://api.hyperliquid.xyz/info
 { "id": "string", "status": "string", "replicas": 1, "available_replicas": 1, "pods": null }
 ```
 
+### POST `/v2/deployment/{id}/exit` — Exit All Positions
+
+Closes all open orders and liquidates all open positions for the deployment's exchange account.
+
+**Requirement:** Deployment must be **stopped** before calling this.
+
+```json
+// Response (200)
+{ "id": "string", "status": "string", "orders_cancelled": 3, "positions_closed": 2 }
+
+// Response (400) — deployment still running or credentials missing
+{ "error": "invalid_request", "message": "..." }
+```
+
+**When to use:** If a stopped deployment still has open positions on Hyperliquid, call this endpoint to force-close them before deleting.
+
 ### DELETE `/v2/deployment/{id}`
 
 Closes all positions and orders on Hyperliquid before deleting. Response: `{ "message": "Deployment deleted" }`

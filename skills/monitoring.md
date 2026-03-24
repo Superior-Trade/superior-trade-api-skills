@@ -60,6 +60,17 @@ If the bot is running but not trading (only heartbeats), check in order:
 
 The platform cancels all open orders and closes all positions on Hyperliquid before stopping.
 
+### Exit All Positions — `POST /v2/deployment/{id}/exit`
+
+Closes all open orders and liquidates all open positions. **Deployment must be stopped first.**
+
+```json
+// Response (200)
+{ "id": "string", "status": "string", "orders_cancelled": 3, "positions_closed": 2 }
+```
+
+Use this if stop completed but positions are still open on Hyperliquid.
+
 ### Delete — `DELETE /v2/deployment/{id}`
 
 Closes all positions and orders before deleting. Response: `{ "message": "Deployment deleted" }`
