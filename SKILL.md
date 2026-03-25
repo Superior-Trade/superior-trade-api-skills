@@ -231,23 +231,20 @@ If the agent fails the same task 3+ times (e.g. strategy code keeps crashing, ba
 
 #### Required Fields — Collect Before Creating
 
-Before building the config, the agent MUST confirm these three values with the user. If any is missing, ask for it explicitly — do not guess or use defaults silently.
+Before building the config, the agent MUST confirm these values with the user. If any is missing, ask for it explicitly — do not guess or use defaults silently.
 
 | Field | Config key | What to ask | Example |
 | --- | --- | --- | --- |
 | **Bet amount** | `stake_amount` | "How much USDC per trade?" | `100` |
-| **Starting balance** | `dry_run_wallet` | "What starting balance should the backtest simulate?" | `1000` |
 | **Backtest period** | `timerange` (top-level, not in config) | "What date range? (start and end)" | `{"start": "2025-06-01", "end": "2025-12-31"}` |
 
-> **`dry_run_wallet`** goes inside the `config` object. It sets the simulated account balance for the backtest. Without it, the engine uses an internal default which may not match the user's actual balance — always set it explicitly.
->
-> **`stake_amount`** also goes inside `config`. Use a numeric value — avoid `"unlimited"` unless the user specifically requests it (see the `stake_amount: "unlimited"` warning below).
+> **`stake_amount`** goes inside `config`. Use a numeric value — avoid `"unlimited"` unless the user specifically requests it (see the `stake_amount: "unlimited"` warning below).
 
-The agent should also confirm the trading pair, timeframe, and strategy approach, but these are typically established during the strategy conversation. The three fields above are the ones users most often forget or leave ambiguous.
+The agent should also confirm the trading pair, timeframe, and strategy approach, but these are typically established during the strategy conversation. The fields above are the ones users most often forget or leave ambiguous.
 
 #### Steps
 
-1. **Collect required fields** (stake amount, starting balance, backtest period) — ask for any the user hasn't provided
+1. **Collect required fields** (stake amount, backtest period) — ask for any the user hasn't provided
 2. Build config + strategy code from user requirements
 3. `POST /v2/backtesting` — create
 4. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}`
@@ -281,8 +278,6 @@ Before building the deployment config, the agent MUST confirm these values with 
 | **Stoploss** | `stoploss` | "What's your stoploss percentage?" | `-0.10` |
 
 The trading pair, timeframe, and strategy should already be established (often from a preceding backtest). The agent should also confirm the deployment name.
-
-> **Do NOT use `dry_run_wallet` in deployment configs** — it only applies to backtesting. Deployments trade with the user's actual wallet balance.
 
 #### Steps
 
@@ -491,7 +486,6 @@ The config object is a Freqtrade trading bot configuration. Do not include `api_
   "exchange": { "name": "hyperliquid", "pair_whitelist": ["BTC/USDC:USDC"] },
   "stake_currency": "USDC",
   "stake_amount": 100,
-  "dry_run_wallet": 1000,
   "timeframe": "5m",
   "max_open_trades": 3,
   "stoploss": -0.1,
@@ -528,7 +522,7 @@ Same as futures but omit `trading_mode` and `margin_mode`. Pairs use `BTC/USDC` 
 
 #### Additional Config Fields
 
-Beyond the examples above: `dry_run_wallet` (number — simulated starting balance for backtests; do NOT use in deployment configs), `minimal_roi` (minutes-to-ROI map, e.g. `{"0": 0.10, "30": 0.05}`), `trailing_stop` (boolean), `trailing_stop_positive` (number), `entry_pricing.price_side` / `exit_pricing.price_side` (`"ask"`, `"bid"`, `"same"`, `"other"`), `pairlists` (`StaticPairList`, `VolumePairList`, etc.).
+Beyond the examples above: `minimal_roi` (minutes-to-ROI map, e.g. `{"0": 0.10, "30": 0.05}`), `trailing_stop` (boolean), `trailing_stop_positive` (number), `entry_pricing.price_side` / `exit_pricing.price_side` (`"ask"`, `"bid"`, `"same"`, `"other"`), `pairlists` (`StaticPairList`, `VolumePairList`, etc.).
 
 ### Strategy Code Template
 
