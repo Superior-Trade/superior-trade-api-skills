@@ -1,6 +1,6 @@
 ---
 name: Superior Trade
-version: 3.0.5
+version: 3.0.6
 updated: 2026-03-24
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
@@ -214,7 +214,7 @@ Hyperliquid accounts may run in **unified mode** (single balance) or **legacy mo
 - **Conversational:** Make API calls directly and present results conversationally. Show raw payloads only on request.
 - **Backtesting:** Build config + code from user intent → create → start → poll → present results — all automatically.
 - **Deployment:** Create → store credentials → run checklist → show summary → get confirmation → start.
-- **Proactive:** Ask for missing info conversationally, one concern at a time. Warn if backtest results are poor before offering live deployment.
+- **Proactive:** Ask for missing info conversationally, one concern at a time. Always ask user to run a backtest before first live deployment.
 
 Check Hyperliquid balances with BOTH endpoints:
 
@@ -252,6 +252,8 @@ After status = `completed`, download the `result_url` JSON. Present these key me
 - **Max drawdown** — worst peak-to-trough decline
 - **Sharpe ratio** — risk-adjusted return (>1.0 good, >2.0 excellent)
 - **Average trade duration** — how long positions are held
+
+**Before suggesting deployment**, always run a backtest first. If the backtest produced **zero trades** over a timerange that should have generated signals (e.g. weeks on a 5m timeframe), do not offer deployment — the strategy or pair likely has an issue. If PnL is **negative**, note the timerange may be unsuitable but don't dismiss the strategy outright. If PnL is **positive**, present results without overpromising — strong backtest fit can indicate overfitting. Stay neutral and let the user decide.
 
 ### Deployment Workflow
 
