@@ -1,6 +1,6 @@
 ---
 name: Superior Trade
-version: 3.0.2
+version: 3.0.3
 updated: 2026-03-24
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
@@ -256,7 +256,7 @@ After status = `completed`, download the `result_url` JSON. Present these key me
 ### Deployment Workflow
 
 1. `POST /v2/deployment` with config, code, name
-2. `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid" }` — server assigns wallet automatically (**required** before live start; there is no paper/dry-run deployment mode)
+2. `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid" }` — server assigns wallet automatically. **Skip this step for dry-run/paper mode** — a deployment without credentials runs in dry-run mode (simulated trades, no real funds)
 3. Run the pre-deployment checklist
 4. Show the live deployment confirmation summary and wait for explicit user confirmation
 5. `PUT /v2/deployment/{id}/status` → `{"action": "start"}`
@@ -267,9 +267,14 @@ After status = `completed`, download the `result_url` JSON. Present these key me
 
 Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 
+**For live deployments (credentials stored):**
+
 1. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
 2. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
 3. **Funds available in main wallet** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` on the public Hyperliquid info endpoint (read-only, sends public wallet address only — no secrets).
+
+**For dry-run deployments (no credentials):** Skip steps 1–3 — the deployment runs in simulation mode without real funds.
+
 4. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` for standard perps, or `{"type":"meta", "dex":"xyz"}` (or the relevant dex name) for HIP3 pairs. Verify the coin name exists in the `universe` array.
 
 Do NOT skip any step or assume it passed without the API call.
@@ -434,7 +439,7 @@ Both `GET /v2/backtesting` and `GET /v2/deployment` return `{ "items": [], "next
 
 ### Config Reference
 
-The config object is a Freqtrade trading bot configuration. Do not include `api_server` (platform-managed). **Paper/dry-run trading is not offered** — do not set `dry_run` in user-facing config.
+The config object is a Freqtrade trading bot configuration. Do not include `api_server` (platform-managed). To run in **dry-run/paper mode**, skip the credentials step — a deployment without credentials trades in simulation. Do not set `dry_run` manually in config.
 
 #### Futures Config (recommended)
 
