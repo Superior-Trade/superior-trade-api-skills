@@ -194,7 +194,25 @@ HIP3 assets (stocks, commodities, indices) are perpetual futures.
 
 ### Pair Discovery
 
-Verify pairs exist: `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` — check the `universe` array. The API returns raw coin names (e.g. `XYZ/GOLD`) — convert to CCXT format with hyphen separator (`XYZ-GOLD/USDC:USDC`) before showing to users or using in config.
+Before using a pair, verify it exists by querying the correct Hyperliquid dex. **HIP3 assets are NOT on the main dex** — you must query the specific sub-dex.
+
+```
+POST https://api.hyperliquid.xyz/info
+```
+
+| What to check | Request body | Where to look |
+| --- | --- | --- |
+| **Crypto perps** (BTC, ETH, SOL...) | `{"type": "meta"}` | `universe[].name` |
+| **Spot** (PURR, etc.) | `{"type": "spotMeta"}` | `universe[].name` + `tokens[]` |
+| **HIP3 — XYZ** (GOLD, AAPL, TSLA...) | `{"type": "meta", "dex": "xyz"}` | `universe[].name` |
+| **HIP3 — CASH** | `{"type": "meta", "dex": "cash"}` | `universe[].name` |
+| **HIP3 — FLX** | `{"type": "meta", "dex": "flx"}` | `universe[].name` |
+| **HIP3 — KM** | `{"type": "meta", "dex": "km"}` | `universe[].name` |
+| **HIP3 — HYNA** | `{"type": "meta", "dex": "hyna"}` | `universe[].name` |
+
+> **CRITICAL:** If the user asks to trade GOLD, AAPL, TSLA, or any non-crypto asset, you MUST query `{"type": "meta", "dex": "xyz"}` (or the appropriate dex). Querying `{"type": "meta"}` without `"dex"` only returns crypto perps and will NOT find HIP3 assets.
+
+The API returns raw names like `xyz:GOLD` — convert to CCXT format with hyphen: `XYZ-GOLD/USDC:USDC`. Filter out `"isDelisted": true`.
 
 ### Unified vs Legacy Account Mode
 
@@ -207,6 +225,7 @@ Hyperliquid accounts may run in **unified mode** (single balance) or **legacy mo
 
 - **Verification-first:** Every factual claim about balance, wallet status, or deployment health MUST be backed by an API call in the current turn. NEVER assume → report → verify later.
 - **Anti-hallucination:** If you can't call the API, say "I haven't checked yet." Every number must come from a real response.
+- **API key validation:** Before making API calls, verify the key starts with `st_live_` and is the expected length. If the first call returns 401, tell the user the key appears invalid or truncated — ask them to re-check it rather than continuing with a bad key.
 - **Conversational:** Make API calls directly and present results conversationally. Show raw payloads only on request.
 - **Backtesting:** Build config + code from user intent → create → start → poll → present results — all automatically.
 - **Deployment:** Create → store credentials → run checklist → show summary → get confirmation → start.
@@ -248,14 +267,15 @@ The agent should also confirm the trading pair, timeframe, and strategy approach
 #### Steps
 
 1. **Collect required fields** (bet amount, starting balance, backtest period) — ask for any the user hasn't provided
-2. Build config + strategy code from user requirements
-3. `POST /v2/backtesting` — create
-4. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}`
-5. Poll `GET /v2/backtesting/{id}/status` every 10s until `completed` or `failed` (1–10 min)
-6. `GET /v2/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
-7. Present summary: total trades, win rate, profit, drawdown, Sharpe ratio
-8. If failed, check `GET /v2/backtesting/{id}/logs`
-9. To cancel: `DELETE /v2/backtesting/{id}`
+2. **Validate the pair exists** — query the correct Hyperliquid dex (see Pair Discovery). Stop and tell the user if the pair is not found or delisted. Confirm the exact CCXT-format pair name to use.
+3. Build config + strategy code from user requirements
+4. `POST /v2/backtesting` — create
+5. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}`
+6. Poll `GET /v2/backtesting/{id}/status` every 10s until `completed` or `failed` (1–10 min)
+7. `GET /v2/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
+8. Present summary: total trades, win rate, profit, drawdown, Sharpe ratio
+9. If failed, check `GET /v2/backtesting/{id}/logs`
+10. To cancel: `DELETE /v2/backtesting/{id}`
 
 #### Result Interpretation
 
@@ -285,7 +305,8 @@ The trading pair, timeframe, and strategy should already be established (often f
 #### Steps
 
 1. **Collect required fields** (stake amount, max open trades, stoploss) — ask for any the user hasn't provided
-2. `POST /v2/deployment` with config, code, name
+2. **Validate the pair exists** — query the correct Hyperliquid dex (see Pair Discovery). Stop and tell the user if the pair is not found or delisted. Confirm the exact CCXT-format pair name to use.
+3. `POST /v2/deployment` with config, code, name
 3. `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid" }` — server assigns wallet automatically (**required** before live start; there is no paper/dry-run deployment mode)
 4. Run the pre-deployment checklist
 5. Show the live deployment confirmation summary and wait for explicit user confirmation
@@ -298,7 +319,8 @@ The trading pair, timeframe, and strategy should already be established (often f
 Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 
 1. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
-2. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
+2. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` with the appropriate body for the asset type (see Pair Discovery). Verify the pair is in `universe[]` and NOT delisted. Use the exact CCXT-format name in the config.
+3. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
 3. **Funds available in main wallet** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` on the public Hyperliquid info endpoint (read-only, sends public wallet address only — no secrets).
 4. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` and verify pair exists.
 
