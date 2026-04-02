@@ -1,11 +1,19 @@
 ---
 name: Superior Trade
-version: 3.0.9
+version: 3.1.0
 updated: 2026-04-02
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
 primaryEnv: SUPERIOR_TRADE_API_KEY
+requiredEnv:
+  - SUPERIOR_TRADE_API_KEY
+invocation: user-confirmed
+userConfirmationRequired:
+  - action: deployment_start
+    reason: "Starts live trading with real funds"
+  - action: deployment_create
+    reason: "Creates a deployment that can be started for live trading"
 auth:
   type: api_key
   env: SUPERIOR_TRADE_API_KEY
